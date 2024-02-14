@@ -1,0 +1,64 @@
+services:
+
+  cache:
+    image: redis:5.0.1
+    restart: always
+    volumes:
+      - ./data/cache:/data
+
+  db:
+    image: postgres:16.1
+    restart: always
+    volumes:
+      - ./data/db:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+
+  web:
+    build: .
+    command: [ "./wait-for-it.sh", "db:5432", "--",
+               "python", "/code/education/manage.py", "runserver",
+               "0.0.0.0:8000" ]
+    restart: always
+    volumes:
+      - .:/code
+    environment:
+      - DJANGO_SETTINGS_MODULE=education.settings.prod
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    depends_on:
+      - db
+      - cache
+
+
+
+  #  daphne:
+  #    build: .
+  #    working_dir: /code/education/
+  #    command: ["../wait-for-it.sh", "db:5432", "--",
+  #              "daphne", "-u", "/code/education/daphne.sock",
+  #              "education.asgi:application"]
+  #    restart: always
+  #    volumes:
+  #      - .:/code
+  #    environment:
+  #      - DJANGO_SETTINGS_MODULE=education.settings.prod
+  #      - POSTGRES_DB=postgres
+  #      - POSTGRES_USER=postgres
+  #      - POSTGRES_PASSWORD=postgres
+  #    depends_on:
+  #      - db
+  #      - cache
+
+  nginx:
+    image: nginx:1.25.3
+    restart: always
+    volumes:
+      - ./config/nginx:/etc/nginx/templates
+      - .:/code
+    ports:
+      - "80:80"
+      - "443:443"
